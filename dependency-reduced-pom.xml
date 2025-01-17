@@ -82,6 +82,7 @@
                     <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                     <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
                     <buildArg>--gc=epsilon</buildArg>
+                    <buildArg>-H:ReflectionConfigurationFiles=/mnt/c/Users/Minec/Projects/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
                   </buildArgs>
                 </configuration>
               </execution>
@@ -94,6 +95,7 @@
                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                 <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
                 <buildArg>--gc=epsilon</buildArg>
+                <buildArg>-H:ReflectionConfigurationFiles=/mnt/c/Users/Minec/Projects/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
               </buildArgs>
             </configuration>
           </plugin>

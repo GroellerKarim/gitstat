@@ -1,0 +1,51 @@
+[
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$TrustLooseRefStat",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$AutoCRLF",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$CheckStat",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$EOL",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$HideDotFiles",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.lib.CoreConfig$SymLinks",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  },
+  {
+    "name": "org.eclipse.jgit.diff.DiffAlgorithm$SupportedAlgorithm",
+    "methods": [
+      { "name": "values", "parameterTypes": [] },
+      { "name": "valueOf", "parameterTypes": ["java.lang.String"] }
+    ]
+  }
+] 

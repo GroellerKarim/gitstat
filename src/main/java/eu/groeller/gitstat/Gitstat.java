@@ -58,7 +58,7 @@ public class Gitstat {
 
                 // Print results
                 statsMap.forEach((author, stats) -> 
-                    System.out.printf("Author: %s%n  Commits: %d%n  Additions: %d%n  Deletions: %d%n%n",
+                    System.out.printf("Author: %s  Commits: %d  Additions: %d  Deletions: %d%n",
                         author, stats.commitCount, stats.additions, stats.deletions));
             }
         } catch (IOException | GitAPIException e) {
