@@ -20,8 +20,13 @@
             <groupId>org.eclipse.jgit</groupId>
             <artifactId>org.eclipse.jgit</artifactId>
             <version>6.9.0.202403050737-r</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        <!-- Optional: Add command line parsing library -->
         <dependency>
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
