@@ -57,19 +57,37 @@ public class Gitstat {
                 });
 
                 // Print header
-                System.out.printf("%-30s | %8s | %10s | %10s%n", 
+                System.out.printf("%-30s | %10s | %12s | %9s%n",
                     "Author", "Commits", "Additions", "Deletions");
                 System.out.println("-".repeat(65));
 
-                // Print data
+                // Calculate and print totals
+                int totalCommits = statsMap.values().stream()
+                    .mapToInt(stats -> stats.commitCount.get())
+                    .sum();
+                int totalAdditions = statsMap.values().stream()
+                    .mapToInt(stats -> stats.additions.get())
+                    .sum();
+                int totalDeletions = statsMap.values().stream()
+                    .mapToInt(stats -> stats.deletions.get())
+                    .sum();
+
+                System.out.printf("%-30s | %10d | %14d | %11d%n",
+                    "TOTAL", totalCommits, totalAdditions, totalDeletions);
+                System.out.println("-".repeat(65));  // Separator line
+
+                // Print individual data with percentages
                 statsMap.entrySet().stream()
-                    .sorted((a, b) -> Integer.compare(b.getValue().getCommitCount(), a.getValue().getCommitCount()))
+                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount.get(), a.getValue().commitCount.get()))
                     .forEach(entry -> 
-                        System.out.printf("%-30s | %8d | %10d | %10d%n",
+                        System.out.printf("%-30s | %5d (%2d%%) | %8d (%2d%%) | %8d (%2d%%)%n",
                             entry.getKey(), 
-                            entry.getValue().getCommitCount(), 
-                            entry.getValue().getAdditions(), 
-                            entry.getValue().getDeletions()));
+                            entry.getValue().commitCount.get(),
+                            Math.round((entry.getValue().commitCount.get() * 100.0f) / totalCommits),
+                            entry.getValue().additions.get(),
+                            Math.round((entry.getValue().additions.get() * 100.0f) / totalAdditions),
+                            entry.getValue().deletions.get(),
+                            Math.round((entry.getValue().deletions.get() * 100.0f) / totalDeletions)));
 
                 long endTime = System.currentTimeMillis();
                 System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
