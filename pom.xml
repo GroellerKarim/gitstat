@@ -15,6 +15,25 @@
         <graalvm.version>23.1.1</graalvm.version>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>6.9.0.202403050737-r</version>
+        </dependency>
+        <!-- Optional: Add command line parsing library -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>4.7.5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>2.0.12</version>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -39,6 +58,36 @@
                     </archive>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.2</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>eu.groeller.gitstat.Gitstat</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -56,20 +105,19 @@
               <execution>
                 <id>build-native</id>
                 <goals>
-                  <goal>compile-no-fork</goal>
+                  <goal>build</goal>
                 </goals>
                 <phase>package</phase>
               </execution>
-              <execution>
-                <id>test-native</id>
-                <goals>
-                  <goal>test</goal>
-                </goals>
-                <phase>test</phase>
-              </execution>
             </executions>
             <configuration>
-                <mainClass>eu.groeller.gitstat.Gitstat</mainClass>
+                <buildArgs>
+                    <buildArg>--no-fallback</buildArg>
+                    <buildArg>--initialize-at-build-time=org.eclipse.jgit</buildArg>
+                    <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache</buildArg>
+                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                    <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
+                </buildArgs>
             </configuration>
           </plugin>
         </plugins>
