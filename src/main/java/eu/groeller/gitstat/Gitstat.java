@@ -25,7 +25,7 @@ public class Gitstat {
             try (Git git = new Git(repository)) {
                 Map<String, AuthorStats> statsMap = new HashMap<>();
 
-                git.log().all().call().forEach(commit -> {
+                git.log().call().forEach(commit -> {
                     String author = commit.getAuthorIdent().getName();
                     statsMap.computeIfAbsent(author, k -> new AuthorStats());
                     AuthorStats stats = statsMap.get(author);
@@ -56,10 +56,20 @@ public class Gitstat {
                     }
                 });
 
-                // Print results
-                statsMap.forEach((author, stats) -> 
-                    System.out.printf("Author: %s  Commits: %d  Additions: %d  Deletions: %d%n",
-                        author, stats.commitCount, stats.additions, stats.deletions));
+                // Print header
+                System.out.printf("%-30s | %8s | %10s | %10s%n", 
+                    "Author", "Commits", "Additions", "Deletions");
+                System.out.println("-".repeat(65));  // Separator line
+
+                // Print data
+                statsMap.entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount, a.getValue().commitCount))
+                    .forEach(entry -> 
+                        System.out.printf("%-30s | %8d | %10d | %10d%n",
+                            entry.getKey(), 
+                            entry.getValue().commitCount, 
+                            entry.getValue().additions, 
+                            entry.getValue().deletions));
             }
         } catch (IOException | GitAPIException e) {
             e.printStackTrace();
