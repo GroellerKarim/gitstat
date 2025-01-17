@@ -81,6 +81,7 @@
                     <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache</buildArg>
                     <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                     <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
+                    <buildArg>--gc=epsilon</buildArg>
                   </buildArgs>
                 </configuration>
               </execution>
@@ -92,6 +93,7 @@
                 <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache</buildArg>
                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                 <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
+                <buildArg>--gc=epsilon</buildArg>
               </buildArgs>
             </configuration>
           </plugin>
