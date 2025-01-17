@@ -13,9 +13,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.StreamSupport;
 
 public class Gitstat {
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
         try {
             File gitDir = new File(".git");
             Repository repository = new FileRepositoryBuilder()
@@ -23,53 +27,52 @@ public class Gitstat {
                     .build();
 
             try (Git git = new Git(repository)) {
-                Map<String, AuthorStats> statsMap = new HashMap<>();
+                Map<String, AuthorStats> statsMap = new ConcurrentHashMap<>();
 
-                git.log().call().forEach(commit -> {
+                // Convert Iterable to Stream and parallelize
+                StreamSupport.stream(git.log().call().spliterator(), true).forEach(commit -> {
+                    // Create a new DiffFormatter for each thread
+                    DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
+                    df.setRepository(repository);
+
                     String author = commit.getAuthorIdent().getName();
-                    statsMap.computeIfAbsent(author, k -> new AuthorStats());
-                    AuthorStats stats = statsMap.get(author);
-                    stats.commitCount++;
+                    AuthorStats stats = statsMap.computeIfAbsent(author, k -> new AuthorStats());
+                    stats.commitCount.incrementAndGet();
 
                     // Calculate diff stats
                     try {
                         if (commit.getParentCount() > 0) {
-                            DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
-                            df.setRepository(repository);
                             for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
                                 for(Edit edit : df.toFileHeader(diff).toEditList()) {
-                                    if (edit.getType() == Edit.Type.INSERT) {
-                                        stats.additions += edit.getLengthB();
-                                    }
-                                    else if (edit.getType() == Edit.Type.DELETE) {
-                                        stats.deletions += edit.getLengthA();
-                                    }
-                                    else if (edit.getType() == Edit.Type.REPLACE) {
-                                        stats.additions += edit.getLengthB();
-                                        stats.deletions += edit.getLengthA();
-                                    }
+                                    stats.updateStats(edit);
                                 }
                             }
                         }
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        System.err.printf("Warning: Could not process commit %s: %s%n", 
+                            commit.getName(), e.getMessage());
+                    } finally {
+                        df.close();
                     }
                 });
 
                 // Print header
                 System.out.printf("%-30s | %8s | %10s | %10s%n", 
                     "Author", "Commits", "Additions", "Deletions");
-                System.out.println("-".repeat(65));  // Separator line
+                System.out.println("-".repeat(65));
 
                 // Print data
                 statsMap.entrySet().stream()
-                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount, a.getValue().commitCount))
+                    .sorted((a, b) -> Integer.compare(b.getValue().getCommitCount(), a.getValue().getCommitCount()))
                     .forEach(entry -> 
                         System.out.printf("%-30s | %8d | %10d | %10d%n",
                             entry.getKey(), 
-                            entry.getValue().commitCount, 
-                            entry.getValue().additions, 
-                            entry.getValue().deletions));
+                            entry.getValue().getCommitCount(), 
+                            entry.getValue().getAdditions(), 
+                            entry.getValue().getDeletions()));
+
+                long endTime = System.currentTimeMillis();
+                System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
             }
         } catch (IOException | GitAPIException e) {
             e.printStackTrace();
@@ -77,8 +80,23 @@ public class Gitstat {
     }
 
     private static class AuthorStats {
-        int commitCount = 0;
-        int additions = 0;
-        int deletions = 0;
+        private final AtomicInteger commitCount = new AtomicInteger(0);
+        private final AtomicInteger additions = new AtomicInteger(0);
+        private final AtomicInteger deletions = new AtomicInteger(0);
+
+        void updateStats(Edit edit) {
+            switch (edit.getType()) {
+                case INSERT -> additions.getAndAdd(edit.getLengthB());
+                case DELETE -> deletions.getAndAdd(edit.getLengthA());
+                case REPLACE -> {
+                    additions.getAndAdd(edit.getLengthB());
+                    deletions.getAndAdd(edit.getLengthA());
+                }
+            }
+        }
+
+        int getCommitCount() { return commitCount.get(); }
+        int getAdditions() { return additions.get(); }
+        int getDeletions() { return deletions.get(); }
     }
 } 
