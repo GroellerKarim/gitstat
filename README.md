@@ -10,13 +10,17 @@ Gitstat analyzes the current Git repository and provides a summary of:
 - Per-author statistics with percentages of contribution
 - All statistics for the current branch
 
+
 Example output:
+
+```
 Author                          |  Commits |    Additions   | Deletions
 TOTAL                          |      448 |         96797 |    50573
 -----------------------------------------------------------------
 Luktronic                      | 325 (73%) | 36977 (38%) | 20860 (41%)
 GroellerKarim                  |  95 (21%) | 38791 (40%) | 21082 (42%)
 Karim Jonas Gröller           |  19 ( 4%) |  8025 ( 8%) |  4447 ( 9%)
+```
 
 ## Build Requirements
 
