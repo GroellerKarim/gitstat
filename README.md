@@ -14,12 +14,12 @@ Gitstat analyzes the current Git repository and provides a summary of:
 Example output:
 
 ```
-Author                          |  Commits |    Additions   | Deletions
-TOTAL                          |      448 |         96797 |    50573
+Author                          |  Commits |    Additions | Deletions
+TOTAL                           |      448 |        96797 |    50573
 -----------------------------------------------------------------
-Luktronic                      | 325 (73%) | 36977 (38%) | 20860 (41%)
-GroellerKarim                  |  95 (21%) | 38791 (40%) | 21082 (42%)
-Karim Jonas Gröller           |  19 ( 4%) |  8025 ( 8%) |  4447 ( 9%)
+User1                           | 325 (73%) | 36977 (38%) | 20860 (41%)
+User2                           |  95 (21%) | 38791 (40%) | 21082 (42%)
+User3                           |  19 ( 4%) |  8025 ( 8%) |  4447 ( 9%)
 ```
 
 ## Build Requirements
