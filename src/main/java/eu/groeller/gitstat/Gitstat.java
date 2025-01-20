@@ -11,13 +11,17 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.StreamSupport;
 
+import static java.util.stream.Collectors.*;
+
 public class Gitstat {
+    private record CommitInfo(String author, int additions, int deletions, Instant dateTime) {
+    }
+
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
         try {
@@ -27,72 +31,94 @@ public class Gitstat {
                     .build();
 
             try (Git git = new Git(repository)) {
-                Map<String, AuthorStats> statsMap = new ConcurrentHashMap<>();
+                int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
+                Map<String, CommitInfo> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
 
-                // Convert Iterable to Stream and parallelize
                 StreamSupport.stream(git.log().call().spliterator(), true).forEach(commit -> {
-                    // Skip merge commits (commits with more than one parent)
                     if (commit.getParentCount() > 1) {
                         return;
                     }
 
-                    // Create a new DiffFormatter for each thread
-                    DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
-                    df.setRepository(repository);
-
-                    String author = commit.getAuthorIdent().getName();
-                    AuthorStats stats = statsMap.computeIfAbsent(author, k -> new AuthorStats());
-                    stats.commitCount.incrementAndGet();
-
-                    // Calculate diff stats
                     try {
                         if (commit.getParentCount() > 0) {
+                            DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
+                            df.setRepository(repository);
+
+                            int additions = 0;
+                            int deletions = 0;
+
                             for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
-                                for(Edit edit : df.toFileHeader(diff).toEditList()) {
-                                    stats.updateStats(edit);
+                                for (Edit edit : df.toFileHeader(diff).toEditList()) {
+                                    switch (edit.getType()) {
+                                        case INSERT -> additions += edit.getLengthB();
+                                        case DELETE -> deletions += edit.getLengthA();
+                                        case REPLACE -> {
+                                            additions += edit.getLengthB();
+                                            deletions += edit.getLengthA();
+                                        }
+                                    }
                                 }
                             }
+
+                            commits.put(commit.getName(), new CommitInfo(
+                                commit.getAuthorIdent().getName(),
+                                additions,
+                                deletions,
+                                Instant.ofEpochSecond(commit.getCommitTime())
+                            ));
+
+                            df.close();
                         }
                     } catch (IOException e) {
                         System.err.printf("Warning: Could not process commit %s: %s%n", 
                             commit.getName(), e.getMessage());
-                    } finally {
-                        df.close();
                     }
                 });
 
+                var authorStats = commits.values().stream()
+                    .collect(groupingBy(
+                        ci -> ci.author,
+                        collectingAndThen(toList(), list -> new Object() {
+                            final int commitCount = list.size();
+                            final int additions = list.stream().mapToInt(ci -> ci.additions).sum();
+                            final int deletions = list.stream().mapToInt(ci -> ci.deletions).sum();
+                        })
+                    ));
+
+                int totalCommits = authorStats.values().stream()
+                    .mapToInt(stats -> stats.commitCount)
+                    .sum();
+                int totalAdditions = authorStats.values().stream()
+                    .mapToInt(stats -> stats.additions)
+                    .sum();
+                int totalDeletions = authorStats.values().stream()
+                    .mapToInt(stats -> stats.deletions)
+                    .sum();
+
                 // Print header
-                System.out.printf("%-30s | %10s | %12s | %9s%n",
+                System.out.printf("%-30s | %8s | %12s | %9s%n",
                     "Author", "Commits", "Additions", "Deletions");
                 System.out.println("-".repeat(65));
 
-                // Calculate and print totals
-                int totalCommits = statsMap.values().stream()
-                    .mapToInt(stats -> stats.commitCount.get())
-                    .sum();
-                int totalAdditions = statsMap.values().stream()
-                    .mapToInt(stats -> stats.additions.get())
-                    .sum();
-                int totalDeletions = statsMap.values().stream()
-                    .mapToInt(stats -> stats.deletions.get())
-                    .sum();
-
-                System.out.printf("%-30s | %10d | %14d | %11d%n",
+                // Print totals
+                System.out.printf("%-30s | %8d | %12d | %9d%n",
                     "TOTAL", totalCommits, totalAdditions, totalDeletions);
-                System.out.println("-".repeat(65));  // Separator line
+                System.out.println("-".repeat(65));
 
-                // Print individual data with percentages
-                statsMap.entrySet().stream()
-                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount.get(), a.getValue().commitCount.get()))
-                    .forEach(entry -> 
-                        System.out.printf("%-30s | %5d (%2d%%) | %8d (%2d%%) | %8d (%2d%%)%n",
-                            entry.getKey(), 
-                            entry.getValue().commitCount.get(),
-                            Math.round((entry.getValue().commitCount.get() * 100.0f) / totalCommits),
-                            entry.getValue().additions.get(),
-                            Math.round((entry.getValue().additions.get() * 100.0f) / totalAdditions),
-                            entry.getValue().deletions.get(),
-                            Math.round((entry.getValue().deletions.get() * 100.0f) / totalDeletions)));
+                // Print per-author statistics
+                authorStats.entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount, a.getValue().commitCount))
+                    .forEach(entry -> {
+                        var stats = entry.getValue();
+                        System.out.printf("%-30s | %3d (%2d%%) | %6d (%2d%%) | %6d (%2d%%)%n",
+                            entry.getKey(),
+                            stats.commitCount,
+                            Math.round((stats.commitCount * 100.0f) / totalCommits),
+                            stats.additions,
+                            Math.round((stats.additions * 100.0f) / totalAdditions),
+                            stats.deletions,
+                            Math.round((stats.deletions * 100.0f) / totalDeletions));
+                    });
 
                 long endTime = System.currentTimeMillis();
                 System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
@@ -100,26 +126,5 @@ public class Gitstat {
         } catch (IOException | GitAPIException e) {
             e.printStackTrace();
         }
-    }
-
-    private static class AuthorStats {
-        private final AtomicInteger commitCount = new AtomicInteger(0);
-        private final AtomicInteger additions = new AtomicInteger(0);
-        private final AtomicInteger deletions = new AtomicInteger(0);
-
-        void updateStats(Edit edit) {
-            switch (edit.getType()) {
-                case INSERT -> additions.getAndAdd(edit.getLengthB());
-                case DELETE -> deletions.getAndAdd(edit.getLengthA());
-                case REPLACE -> {
-                    additions.getAndAdd(edit.getLengthB());
-                    deletions.getAndAdd(edit.getLengthA());
-                }
-            }
-        }
-
-        int getCommitCount() { return commitCount.get(); }
-        int getAdditions() { return additions.get(); }
-        int getDeletions() { return deletions.get(); }
     }
 } 
