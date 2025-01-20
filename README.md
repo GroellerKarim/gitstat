@@ -66,7 +66,7 @@ The tool will analyze the current branch and display statistics for all contribu
 
 ## Features
 - Fast parallel processing of Git history
-- Accurate line counting including merge commits
+- Accurate line counting (excluding merge commits)
 - Memory-efficient processing of large repositories
 - Native executable support for optimal performance
 

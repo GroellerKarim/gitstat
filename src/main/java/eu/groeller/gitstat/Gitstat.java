@@ -31,6 +31,11 @@ public class Gitstat {
 
                 // Convert Iterable to Stream and parallelize
                 StreamSupport.stream(git.log().call().spliterator(), true).forEach(commit -> {
+                    // Skip merge commits (commits with more than one parent)
+                    if (commit.getParentCount() > 1) {
+                        return;
+                    }
+
                     // Create a new DiffFormatter for each thread
                     DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
                     df.setRepository(repository);
