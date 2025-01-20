@@ -13,7 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.stream.StreamSupport;
 
 import static java.util.stream.Collectors.*;
@@ -30,50 +30,65 @@ public class Gitstat {
                     .setGitDir(gitDir)
                     .build();
 
-            try (Git git = new Git(repository)) {
+            try (Git git = new Git(repository);
+                 ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                
                 int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
                 Map<String, CommitInfo> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
+                CountDownLatch latch = new CountDownLatch(1);
+                
+                // Collect all commits first
+                var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
+                    .filter(commit -> commit.getParentCount() <= 1)
+                    .toList();
+                
+                latch = new CountDownLatch(commitList.size());
+                
+                // Process each commit with a virtual thread
+                for (var commit : commitList) {
+                    CountDownLatch finalLatch = latch;
+                    executor.submit(() -> {
+                        try {
+                            if (commit.getParentCount() > 0) {
+                                DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
+                                df.setRepository(repository);
 
-                StreamSupport.stream(git.log().call().spliterator(), true).forEach(commit -> {
-                    if (commit.getParentCount() > 1) {
-                        return;
-                    }
+                                int additions = 0;
+                                int deletions = 0;
 
-                    try {
-                        if (commit.getParentCount() > 0) {
-                            DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
-                            df.setRepository(repository);
-
-                            int additions = 0;
-                            int deletions = 0;
-
-                            for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
-                                for (Edit edit : df.toFileHeader(diff).toEditList()) {
-                                    switch (edit.getType()) {
-                                        case INSERT -> additions += edit.getLengthB();
-                                        case DELETE -> deletions += edit.getLengthA();
-                                        case REPLACE -> {
-                                            additions += edit.getLengthB();
-                                            deletions += edit.getLengthA();
+                                for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
+                                    for (Edit edit : df.toFileHeader(diff).toEditList()) {
+                                        switch (edit.getType()) {
+                                            case INSERT -> additions += edit.getLengthB();
+                                            case DELETE -> deletions += edit.getLengthA();
+                                            case REPLACE -> {
+                                                additions += edit.getLengthB();
+                                                deletions += edit.getLengthA();
+                                            }
                                         }
                                     }
                                 }
+
+                                commits.put(commit.getName(), new CommitInfo(
+                                    commit.getAuthorIdent().getName(),
+                                    additions,
+                                    deletions,
+                                    Instant.ofEpochSecond(commit.getCommitTime())
+                                ));
+
+                                df.close();
                             }
-
-                            commits.put(commit.getName(), new CommitInfo(
-                                commit.getAuthorIdent().getName(),
-                                additions,
-                                deletions,
-                                Instant.ofEpochSecond(commit.getCommitTime())
-                            ));
-
-                            df.close();
+                        } catch (IOException e) {
+                            System.err.printf("Warning: Could not process commit %s: %s%n", 
+                                commit.getName(), e.getMessage());
+                        } finally {
+                            finalLatch.countDown();
                         }
-                    } catch (IOException e) {
-                        System.err.printf("Warning: Could not process commit %s: %s%n", 
-                            commit.getName(), e.getMessage());
-                    }
-                });
+                    });
+                }
+
+                // Wait for all commits to be processed
+                latch.await();
 
                 var authorStats = commits.values().stream()
                     .collect(groupingBy(
@@ -123,7 +138,7 @@ public class Gitstat {
                 long endTime = System.currentTimeMillis();
                 System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
             }
-        } catch (IOException | GitAPIException e) {
+        } catch (IOException | GitAPIException | InterruptedException e) {
             e.printStackTrace();
         }
     }
