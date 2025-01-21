@@ -8,6 +8,10 @@ import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
+import tech.tablesaw.api.DoubleColumn;
+import tech.tablesaw.api.IntColumn;
+import tech.tablesaw.api.StringColumn;
+import tech.tablesaw.api.Table;
 
 import java.io.File;
 import java.io.IOException;
@@ -100,6 +104,7 @@ public class Gitstat {
                         })
                     ));
 
+
                 int totalCommits = authorStats.values().stream()
                     .mapToInt(stats -> stats.commitCount)
                     .sum();
@@ -110,30 +115,32 @@ public class Gitstat {
                     .mapToInt(stats -> stats.deletions)
                     .sum();
 
-                // Print header
-                System.out.printf("%-30s | %8s | %12s | %9s%n",
-                    "Author", "Commits", "Additions", "Deletions");
-                System.out.println("-".repeat(65));
+                // Create a Tablesaw table
+                Table authorTable = Table.create("Git Statistics")
+                        .addColumns(
+                                StringColumn.create("Author"),
+                                IntColumn.create("Hidden Commits"),
+                                StringColumn.create("Commits"),
+                                StringColumn.create("Additions"),
+                                StringColumn.create("Deletions")
+                        );
 
-                // Print totals
-                System.out.printf("%-30s | %8d | %12d | %9d%n",
-                    "TOTAL", totalCommits, totalAdditions, totalDeletions);
-                System.out.println("-".repeat(65));
+                // Add rows to the table
+                final Table finalAuthorTable = authorTable;
+                authorStats.forEach((author, stats) -> {
+                    finalAuthorTable.stringColumn("Author").append(author);
+                    finalAuthorTable.intColumn("Hidden Commits").append(stats.commitCount);
+                    finalAuthorTable.stringColumn("Commits").append("" + stats.commitCount + " (" + Math.round((stats.commitCount * 100.0) / totalCommits * 10.0) / 10.0 + ")");
+                    finalAuthorTable.stringColumn("Additions").append("" + stats.additions + " (" + Math.round((stats.additions * 100.0) / totalAdditions * 10.0) / 10.0 + ")");
+                    finalAuthorTable.stringColumn("Deletions").append("" + stats.deletions + " (" + Math.round((stats.deletions * 100.0) / totalDeletions * 10.0) / 10.0 + ")");
+                });
 
-                // Print per-author statistics
-                authorStats.entrySet().stream()
-                    .sorted((a, b) -> Integer.compare(b.getValue().commitCount, a.getValue().commitCount))
-                    .forEach(entry -> {
-                        var stats = entry.getValue();
-                        System.out.printf("%-30s | %3d (%2d%%) | %6d (%2d%%) | %6d (%2d%%)%n",
-                            entry.getKey(),
-                            stats.commitCount,
-                            Math.round((stats.commitCount * 100.0f) / totalCommits),
-                            stats.additions,
-                            Math.round((stats.additions * 100.0f) / totalAdditions),
-                            stats.deletions,
-                            Math.round((stats.deletions * 100.0f) / totalDeletions));
-                    });
+                // Sort by number of commits (descending)
+                authorTable = authorTable.sortDescendingOn("Hidden Commits");
+                authorTable = authorTable.removeColumns("Hidden Commits");
+
+                // Print the table
+                System.out.println(authorTable.print());
 
                 long endTime = System.currentTimeMillis();
                 System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
