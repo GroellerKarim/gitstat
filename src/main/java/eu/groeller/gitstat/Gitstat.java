@@ -32,84 +32,18 @@ public class Gitstat {
                     .setGitDir(gitDir)
                     .build();
 
-            try (Git git = new Git(repository);
-                 ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                
-                int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
-                Map<String, CommitRecord> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
-
-                // Collect all commits first
-                var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
-                    .filter(commit -> commit.getParentCount() <= 1)
-                    .toList();
-                
-                CountDownLatch latch = new CountDownLatch(commitList.size());
-                
-                // Process each commit with a virtual thread
-                for (var commit : commitList) {
-                    executor.submit(() -> {
-                        try {
-                            if (commit.getParentCount() > 0) {
-                                DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
-                                df.setRepository(repository);
-
-                                int additions = 0;
-                                int deletions = 0;
-
-                                for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
-                                    for (Edit edit : df.toFileHeader(diff).toEditList()) {
-                                        switch (edit.getType()) {
-                                            case INSERT -> additions += edit.getLengthB();
-                                            case DELETE -> deletions += edit.getLengthA();
-                                            case REPLACE -> {
-                                                additions += edit.getLengthB();
-                                                deletions += edit.getLengthA();
-                                            }
-                                        }
-                                    }
-                                }
-
-                                commits.put(commit.getName(), new CommitRecord(
-                                    commit.getAuthorIdent().getName(),
-                                    additions,
-                                    deletions,
-                                    Instant.ofEpochSecond(commit.getCommitTime())
-                                ));
-
-                                df.close();
-                            }
-                        } catch (IOException e) {
-                            System.err.printf("Warning: Could not process commit %s: %s%n", 
-                                commit.getName(), e.getMessage());
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                }
-
-                // Wait for all commits to be processed
-                latch.await();
-
-                var authorStats = commits.values().stream()
-                    .collect(groupingBy(
-                            CommitRecord::author,
-                        collectingAndThen(toList(), list -> new AuthorRecord(
-                                commitList.getFirst().getAuthorIdent().getName(),
-                                list.size(),
-                                list.stream().mapToInt(CommitRecord::additions).sum(),
-                                list.stream().mapToInt(CommitRecord::deletions).sum()))
-                    ));
-
+            try (GitRepositoryAnalyzer analyzer = new GitRepositoryAnalyzer(repository)) {
+                Map<String, AuthorRecord> authorStats = analyzer.analyzeRepository();
 
                 int totalCommits = authorStats.values().stream()
-                    .mapToInt(AuthorRecord::commitCount)
-                    .sum();
+                        .mapToInt(AuthorRecord::commitCount)
+                        .sum();
                 int totalAdditions = authorStats.values().stream()
-                    .mapToInt(AuthorRecord::additionsSum)
-                    .sum();
+                        .mapToInt(AuthorRecord::additionsSum)
+                        .sum();
                 int totalDeletions = authorStats.values().stream()
-                    .mapToInt(AuthorRecord::deletionsSum)
-                    .sum();
+                        .mapToInt(AuthorRecord::deletionsSum)
+                        .sum();
 
                 // Create a Tablesaw table
                 Table authorTable = Table.create("Git Statistics")
@@ -141,7 +75,7 @@ public class Gitstat {
                 long endTime = System.currentTimeMillis();
                 System.out.printf("%nTime taken: %.2f seconds%n", (endTime - startTime) / 1000.0);
             }
-        } catch (IOException | GitAPIException | InterruptedException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
