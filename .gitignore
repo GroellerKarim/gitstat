@@ -21,3 +21,7 @@ target/
 *.zip
 *.tar.gz
 *.rar 
+
+# Application-Specific
+git-statistics.html
+
