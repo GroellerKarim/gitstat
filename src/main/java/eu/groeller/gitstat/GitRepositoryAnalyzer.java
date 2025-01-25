@@ -9,15 +9,19 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.stream.StreamSupport;
 
+import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.*;
 
 public class GitRepositoryAnalyzer implements AutoCloseable{
     private final Repository repository;
     private final Git git;
+    private final Map<String, CommitRecord> commits = new ConcurrentHashMap<>(4096);
 
     public GitRepositoryAnalyzer(Repository repository) {
         this.repository = repository;
@@ -27,7 +31,6 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
     public Map<String, AuthorRecord> analyzeRepository() throws IOException, InterruptedException {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
-            Map<String, CommitRecord> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
 
             var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
                     .filter(commit -> commit.getParentCount() <= 1)
@@ -90,6 +93,23 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
         } catch (Exception e) {
             throw new RuntimeException("Failed to analyze repository", e);
         }
+    }
+
+    public List<DateCommitRecord> getTimeSeriesData() {
+        return commits.values().stream()
+            .collect(groupingBy(
+                commit -> commit.dateTime().truncatedTo(ChronoUnit.DAYS),
+                collectingAndThen(toList(), list -> new DateCommitRecord(
+                    list.getFirst().dateTime(),
+                    list.size(),
+                    list.stream().mapToInt(CommitRecord::additions).sum(),
+                    list.stream().mapToInt(CommitRecord::deletions).sum()
+                ))
+            ))
+            .values()
+            .stream()
+            .sorted(comparing(DateCommitRecord::date))
+            .toList();
     }
 
     @Override
