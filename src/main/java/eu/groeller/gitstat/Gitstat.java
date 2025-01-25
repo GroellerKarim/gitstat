@@ -23,8 +23,6 @@ import java.util.stream.StreamSupport;
 import static java.util.stream.Collectors.*;
 
 public class Gitstat {
-    private record CommitInfo(String author, int additions, int deletions, Instant dateTime) {
-    }
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
@@ -38,19 +36,17 @@ public class Gitstat {
                  ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
                 
                 int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
-                Map<String, CommitInfo> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
-                CountDownLatch latch = new CountDownLatch(1);
-                
+                Map<String, CommitRecord> commits = new ConcurrentHashMap<>(4096, 0.75f, concurrencyLevel);
+
                 // Collect all commits first
                 var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
                     .filter(commit -> commit.getParentCount() <= 1)
                     .toList();
                 
-                latch = new CountDownLatch(commitList.size());
+                CountDownLatch latch = new CountDownLatch(commitList.size());
                 
                 // Process each commit with a virtual thread
                 for (var commit : commitList) {
-                    CountDownLatch finalLatch = latch;
                     executor.submit(() -> {
                         try {
                             if (commit.getParentCount() > 0) {
@@ -73,7 +69,7 @@ public class Gitstat {
                                     }
                                 }
 
-                                commits.put(commit.getName(), new CommitInfo(
+                                commits.put(commit.getName(), new CommitRecord(
                                     commit.getAuthorIdent().getName(),
                                     additions,
                                     deletions,
@@ -86,7 +82,7 @@ public class Gitstat {
                             System.err.printf("Warning: Could not process commit %s: %s%n", 
                                 commit.getName(), e.getMessage());
                         } finally {
-                            finalLatch.countDown();
+                            latch.countDown();
                         }
                     });
                 }
@@ -96,11 +92,11 @@ public class Gitstat {
 
                 var authorStats = commits.values().stream()
                     .collect(groupingBy(
-                        ci -> ci.author,
+                            CommitRecord::author,
                         collectingAndThen(toList(), list -> new Object() {
                             final int commitCount = list.size();
-                            final int additions = list.stream().mapToInt(ci -> ci.additions).sum();
-                            final int deletions = list.stream().mapToInt(ci -> ci.deletions).sum();
+                            final int additions = list.stream().mapToInt(CommitRecord::additions).sum();
+                            final int deletions = list.stream().mapToInt(CommitRecord::deletions).sum();
                         })
                     ));
 
