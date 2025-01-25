@@ -93,22 +93,22 @@ public class Gitstat {
                 var authorStats = commits.values().stream()
                     .collect(groupingBy(
                             CommitRecord::author,
-                        collectingAndThen(toList(), list -> new Object() {
-                            final int commitCount = list.size();
-                            final int additions = list.stream().mapToInt(CommitRecord::additions).sum();
-                            final int deletions = list.stream().mapToInt(CommitRecord::deletions).sum();
-                        })
+                        collectingAndThen(toList(), list -> new AuthorRecord(
+                                commitList.getFirst().getAuthorIdent().getName(),
+                                list.size(),
+                                list.stream().mapToInt(CommitRecord::additions).sum(),
+                                list.stream().mapToInt(CommitRecord::deletions).sum()))
                     ));
 
 
                 int totalCommits = authorStats.values().stream()
-                    .mapToInt(stats -> stats.commitCount)
+                    .mapToInt(AuthorRecord::commitCount)
                     .sum();
                 int totalAdditions = authorStats.values().stream()
-                    .mapToInt(stats -> stats.additions)
+                    .mapToInt(AuthorRecord::additionsSum)
                     .sum();
                 int totalDeletions = authorStats.values().stream()
-                    .mapToInt(stats -> stats.deletions)
+                    .mapToInt(AuthorRecord::deletionsSum)
                     .sum();
 
                 // Create a Tablesaw table
@@ -125,10 +125,10 @@ public class Gitstat {
                 final Table finalAuthorTable = authorTable;
                 authorStats.forEach((author, stats) -> {
                     finalAuthorTable.stringColumn("Author").append(author);
-                    finalAuthorTable.intColumn("Hidden Commits").append(stats.commitCount);
-                    finalAuthorTable.stringColumn("Commits").append("" + stats.commitCount + " (" + Math.round((stats.commitCount * 100.0) / totalCommits * 10.0) / 10.0 + ")");
-                    finalAuthorTable.stringColumn("Additions").append("" + stats.additions + " (" + Math.round((stats.additions * 100.0) / totalAdditions * 10.0) / 10.0 + ")");
-                    finalAuthorTable.stringColumn("Deletions").append("" + stats.deletions + " (" + Math.round((stats.deletions * 100.0) / totalDeletions * 10.0) / 10.0 + ")");
+                    finalAuthorTable.intColumn("Hidden Commits").append(stats.commitCount());
+                    finalAuthorTable.stringColumn("Commits").append("" + stats.commitCount() + " (" + Math.round((stats.commitCount() * 100.0) / totalCommits * 10.0) / 10.0 + ")");
+                    finalAuthorTable.stringColumn("Additions").append("" + stats.additionsSum() + " (" + Math.round((stats.additionsSum() * 100.0) / totalAdditions * 10.0) / 10.0 + ")");
+                    finalAuthorTable.stringColumn("Deletions").append("" + stats.deletionsSum() + " (" + Math.round((stats.deletionsSum() * 100.0) / totalDeletions * 10.0) / 10.0 + ")");
                 });
 
                 // Sort by number of commits (descending)
