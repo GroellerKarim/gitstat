@@ -10,8 +10,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
         <configuration>
-          <source>23</source>
-          <target>23</target>
+          <source>${maven.compiler.source}</source>
+          <target>${maven.compiler.target}</target>
         </configuration>
       </plugin>
       <plugin>
@@ -74,17 +74,28 @@
                 <goals>
                   <goal>build</goal>
                 </goals>
+                <configuration>
+                  <buildArgs>
+                    <buildArg>--no-fallback</buildArg>
+                    <buildArg>--initialize-at-build-time=org.eclipse.jgit,org.slf4j.LoggerFactory,tech.tablesaw,io.github.classgraph,nonapi.io.github.classgraph</buildArg>
+                    <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache,tech.tablesaw.selection.BitmapBackedSelection</buildArg>
+                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                    <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
+                    <buildArg>--gc=epsilon</buildArg>
+                    <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
+                  </buildArgs>
+                </configuration>
               </execution>
             </executions>
             <configuration>
               <buildArgs>
                 <buildArg>--no-fallback</buildArg>
-                <buildArg>--initialize-at-build-time=org.eclipse.jgit</buildArg>
-                <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache</buildArg>
+                <buildArg>--initialize-at-build-time=org.eclipse.jgit,org.slf4j.LoggerFactory,tech.tablesaw,io.github.classgraph,nonapi.io.github.classgraph</buildArg>
+                <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache,tech.tablesaw.selection.BitmapBackedSelection</buildArg>
                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                 <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
                 <buildArg>--gc=epsilon</buildArg>
-                <buildArg>-H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
+                <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
               </buildArgs>
             </configuration>
           </plugin>
@@ -93,9 +104,9 @@
     </profile>
   </profiles>
   <properties>
+    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <graalvm.version>21</graalvm.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.target>23</maven.compiler.target>
-    <maven.compiler.source>23</maven.compiler.source>
-    <graalvm.version>23.1.1</graalvm.version>
   </properties>
 </project>
