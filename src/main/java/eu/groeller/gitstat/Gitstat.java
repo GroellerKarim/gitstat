@@ -31,7 +31,7 @@ public class Gitstat {
                 
                 System.out.println(resultTable.print());
 
-                List<DateCommitRecord> timeSeriesData = analyzer.getTimeSeriesData();
+                List<DateCommitRecord> timeSeriesData = analyzer.getTimeSeriesData(true);
                 ChartGenerator chartGenerator = new ChartGenerator();
                 Path outputPath = Path.of("git-statistics.html");
                 

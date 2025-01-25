@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static java.util.Comparator.comparing;
@@ -95,8 +96,8 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
         }
     }
 
-    public List<DateCommitRecord> getTimeSeriesData() {
-        return commits.values().stream()
+    public List<DateCommitRecord> getTimeSeriesData(boolean fillGaps) {
+        var timeSeriesData = commits.values().stream()
             .collect(groupingBy(
                 commit -> commit.dateTime().truncatedTo(ChronoUnit.DAYS),
                 collectingAndThen(toList(), list -> new DateCommitRecord(
@@ -105,9 +106,24 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
                     list.stream().mapToInt(CommitRecord::additions).sum(),
                     list.stream().mapToInt(CommitRecord::deletions).sum()
                 ))
-            ))
-            .values()
-            .stream()
+            ));
+
+        if (!fillGaps) {
+            return timeSeriesData.values().stream()
+                .sorted(comparing(DateCommitRecord::date))
+                .toList();
+        }
+
+        // Find min and max dates
+        Instant minDate = timeSeriesData.keySet().stream().min(Instant::compareTo).orElseThrow();
+        Instant maxDate = timeSeriesData.keySet().stream().max(Instant::compareTo).orElseThrow();
+
+        // Generate all dates between min and max
+        return Stream.iterate(minDate, 
+                date -> date.isBefore(maxDate) || date.equals(maxDate),
+                date -> date.plus(1, ChronoUnit.DAYS))
+            .map(date -> timeSeriesData.getOrDefault(date,
+                new DateCommitRecord(date, 0, 0, 0)))
             .sorted(comparing(DateCommitRecord::date))
             .toList();
     }
