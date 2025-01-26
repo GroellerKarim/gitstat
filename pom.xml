@@ -141,7 +141,6 @@
                     <buildArg>-H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
                     <buildArg>-H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
                     <buildArg>--gc=G1</buildArg>
-                    <buildArg>-Ob</buildArg>
                 </buildArgs>
             </configuration>
           </plugin>

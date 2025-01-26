@@ -89,7 +89,6 @@
                     <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
                     <buildArg>-H:ResourceConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
                     <buildArg>--gc=G1</buildArg>
-                    <buildArg>-Ob</buildArg>
                   </buildArgs>
                 </configuration>
               </execution>
@@ -104,7 +103,6 @@
                 <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
                 <buildArg>-H:ResourceConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
                 <buildArg>--gc=G1</buildArg>
-                <buildArg>-Ob</buildArg>
               </buildArgs>
             </configuration>
           </plugin>
