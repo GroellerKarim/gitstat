@@ -8,11 +8,19 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import java.io.IOException;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -22,16 +30,17 @@ import static java.util.stream.Collectors.*;
 public class GitRepositoryAnalyzer implements AutoCloseable{
     private final Repository repository;
     private final Git git;
-    private final Map<String, CommitRecord> commits = new ConcurrentHashMap<>(4096);
+    private final Map<String, CommitRecord> commits;
 
     public GitRepositoryAnalyzer(Repository repository) {
         this.repository = repository;
         this.git = new Git(repository);
+
+        commits = new HashMap<>(4096, Runtime.getRuntime().availableProcessors() - 1);
     }
 
     public Map<String, AuthorRecord> analyzeRepository() throws IOException, InterruptedException {
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            int concurrencyLevel = Runtime.getRuntime().availableProcessors() - 1;
 
             var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
                     .filter(commit -> commit.getParentCount() <= 1)
@@ -97,35 +106,57 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
     }
 
     public List<DateCommitRecord> getTimeSeriesData(boolean fillGaps) {
-        var timeSeriesData = commits.values().stream()
-            .collect(groupingBy(
-                commit -> commit.dateTime().truncatedTo(ChronoUnit.DAYS),
-                collectingAndThen(toList(), list -> new DateCommitRecord(
-                    list.getFirst().dateTime(),
-                    list.size(),
-                    list.stream().mapToInt(CommitRecord::additions).sum(),
-                    list.stream().mapToInt(CommitRecord::deletions).sum()
-                ))
-            ));
+        // Find min and max dates first to determine aggregation period
+        final LocalDateTime minDateTime = commits.values().stream()
+                .map(commit -> LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault()).truncatedTo(ChronoUnit.DAYS))
+                .min(LocalDateTime::compareTo)
+                .orElseThrow();
+
+        final LocalDateTime maxDateTime = commits.values().stream()
+                .map(commit -> LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault()).truncatedTo(ChronoUnit.DAYS))
+                .max(LocalDateTime::compareTo)
+                .orElseThrow();
+
+        final boolean useWeeklyAggregation = ChronoUnit.WEEKS.between(minDateTime, maxDateTime) > 4;
+
+        // Group by either weeks or days based on the time span
+        final Map<LocalDateTime, DateCommitRecord> timeSeriesData = commits.values().stream()
+                .collect(groupingBy(
+                        commit -> {
+                            LocalDateTime dateTime = LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault())
+                                    .truncatedTo(ChronoUnit.DAYS);
+                            return useWeeklyAggregation
+                                    ? dateTime.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                                    : dateTime;
+                        },
+                        collectingAndThen(toList(), list -> new DateCommitRecord(
+                                list.getFirst().dateTime().truncatedTo(ChronoUnit.DAYS),
+                                list.size(),
+                                list.stream().mapToInt(CommitRecord::additions).sum(),
+                                list.stream().mapToInt(CommitRecord::deletions).sum()
+                        ))
+                ));
 
         if (!fillGaps) {
             return timeSeriesData.values().stream()
-                .sorted(comparing(DateCommitRecord::date))
-                .toList();
+                    .sorted(comparing(DateCommitRecord::date))
+                    .toList();
         }
 
-        // Find min and max dates
-        Instant minDate = timeSeriesData.keySet().stream().min(Instant::compareTo).orElseThrow();
-        Instant maxDate = timeSeriesData.keySet().stream().max(Instant::compareTo).orElseThrow();
-
-        // Generate all dates between min and max
-        return Stream.iterate(minDate, 
-                date -> date.isBefore(maxDate) || date.equals(maxDate),
-                date -> date.plus(1, ChronoUnit.DAYS))
-            .map(date -> timeSeriesData.getOrDefault(date,
-                new DateCommitRecord(date, 0, 0, 0)))
-            .sorted(comparing(DateCommitRecord::date))
-            .toList();
+        final var today = LocalDateTime.now().truncatedTo(ChronoUnit.DAYS);
+        return Stream.iterate(minDateTime,
+                        date -> date.isBefore(today) || date.equals(today),
+                        date -> date.plusWeeks(1))
+                .map(startDate -> {
+                    final var endWeek = startDate.plusWeeks(1);
+                    return Stream.iterate(startDate,
+                                    date -> date.isBefore(endWeek),
+                                    date -> date.plusDays(1))
+                            .map(timeSeriesData::get)
+                            .filter(Objects::nonNull)
+                            .reduce(new DateCommitRecord(startDate.atZone(ZoneId.systemDefault()).toInstant(), 0, 0, 0), DateCommitRecord::add);
+                })
+                .toList();
     }
 
     @Override

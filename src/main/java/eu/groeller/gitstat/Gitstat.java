@@ -9,8 +9,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.nio.file.Path;
 
 public class Gitstat {
