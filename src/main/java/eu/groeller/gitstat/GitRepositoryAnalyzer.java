@@ -106,9 +106,10 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
     }
 
     public List<DateCommitRecord> getTimeSeriesData(boolean fillGaps) {
-        // Find min and max dates first to determine aggregation period
         final LocalDateTime minDateTime = commits.values().stream()
-                .map(commit -> LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault()).truncatedTo(ChronoUnit.DAYS))
+                .map(commit -> LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault())
+                        .truncatedTo(ChronoUnit.DAYS)
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)))
                 .min(LocalDateTime::compareTo)
                 .orElseThrow();
 
@@ -117,18 +118,10 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
                 .max(LocalDateTime::compareTo)
                 .orElseThrow();
 
-        final boolean useWeeklyAggregation = ChronoUnit.WEEKS.between(minDateTime, maxDateTime) > 4;
 
-        // Group by either weeks or days based on the time span
         final Map<LocalDateTime, DateCommitRecord> timeSeriesData = commits.values().stream()
                 .collect(groupingBy(
-                        commit -> {
-                            LocalDateTime dateTime = LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault())
-                                    .truncatedTo(ChronoUnit.DAYS);
-                            return useWeeklyAggregation
-                                    ? dateTime.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                                    : dateTime;
-                        },
+                        commit -> LocalDateTime.ofInstant(commit.dateTime(), ZoneId.systemDefault()).truncatedTo(ChronoUnit.DAYS),
                         collectingAndThen(toList(), list -> new DateCommitRecord(
                                 list.getFirst().dateTime().truncatedTo(ChronoUnit.DAYS),
                                 list.size(),
