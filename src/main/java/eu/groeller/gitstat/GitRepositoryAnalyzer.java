@@ -15,10 +15,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,7 +35,7 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
         this.repository = repository;
         this.git = new Git(repository);
 
-        commits = new HashMap<>(4096, Runtime.getRuntime().availableProcessors() - 1);
+        commits = new ConcurrentHashMap<>(4096, Runtime.getRuntime().availableProcessors() - 1);
     }
 
     public Map<String, AuthorRecord> analyzeRepository() throws IOException, InterruptedException {
@@ -46,19 +44,19 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
             var commitList = StreamSupport.stream(git.log().call().spliterator(), false)
                     .filter(commit -> commit.getParentCount() <= 1)
                     .toList();
-
+                
             CountDownLatch latch = new CountDownLatch(commitList.size());
 
             for (var commit : commitList) {
                 executor.submit(() -> {
                     try {
+                        DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
+                        df.setRepository(repository);
+
+                        int additions = 0;
+                        int deletions = 0;
+
                         if (commit.getParentCount() > 0) {
-                            DiffFormatter df = new DiffFormatter(DisabledOutputStream.INSTANCE);
-                            df.setRepository(repository);
-
-                            int additions = 0;
-                            int deletions = 0;
-
                             for (DiffEntry diff : df.scan(commit.getParent(0).getTree(), commit.getTree())) {
                                 for (Edit edit : df.toFileHeader(diff).toEditList()) {
                                     switch (edit.getType()) {
@@ -71,16 +69,25 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
                                     }
                                 }
                             }
-
-                            commits.put(commit.getId(), new CommitRecord(
-                                    commit.getAuthorIdent().getName(),
-                                    additions,
-                                    deletions,
-                                    Instant.ofEpochSecond(commit.getCommitTime())
-                            ));
-
-                            df.close();
+                        } else {
+                            ObjectId emptyTreeId = repository.newObjectInserter().insert(org.eclipse.jgit.lib.Constants.OBJ_TREE, new byte[0]);
+                            for (DiffEntry diff : df.scan(emptyTreeId, commit.getTree())) {
+                                for (Edit edit : df.toFileHeader(diff).toEditList()) {
+                                    if (edit.getType() == Edit.Type.INSERT) {
+                                        additions += edit.getLengthB();
+                                    }
+                                }
+                            }
                         }
+
+                        commits.put(commit.getId(), new CommitRecord(
+                                commit.getAuthorIdent().getName(),
+                                additions,
+                                deletions,
+                                Instant.ofEpochSecond(commit.getCommitTime())
+                        ));
+
+                        df.close();
                     } catch (IOException e) {
                         System.err.printf("Warning: Could not process commit %s: %s%n",
                                 commit.getName(), e.getMessage());
