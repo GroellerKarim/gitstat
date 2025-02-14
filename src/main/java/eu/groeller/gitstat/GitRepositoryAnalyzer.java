@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
@@ -30,7 +31,7 @@ import static java.util.stream.Collectors.*;
 public class GitRepositoryAnalyzer implements AutoCloseable{
     private final Repository repository;
     private final Git git;
-    private final Map<String, CommitRecord> commits;
+    private final Map<ObjectId, CommitRecord> commits;
 
     public GitRepositoryAnalyzer(Repository repository) {
         this.repository = repository;
@@ -71,7 +72,7 @@ public class GitRepositoryAnalyzer implements AutoCloseable{
                                 }
                             }
 
-                            commits.put(commit.getName(), new CommitRecord(
+                            commits.put(commit.getId(), new CommitRecord(
                                     commit.getAuthorIdent().getName(),
                                     additions,
                                     deletions,

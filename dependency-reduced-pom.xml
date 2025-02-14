@@ -79,19 +79,6 @@
                 <goals>
                   <goal>build</goal>
                 </goals>
-                <configuration>
-                  <buildArgs>
-                    <buildArg>--no-fallback</buildArg>
-                    <buildArg>--initialize-at-build-time=org.eclipse.jgit,org.slf4j.LoggerFactory,tech.tablesaw,io.github.classgraph,nonapi.io.github.classgraph</buildArg>
-                    <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache,tech.tablesaw.selection.BitmapBackedSelection</buildArg>
-                    <buildArg>-H:+ReportExceptionStackTraces</buildArg>
-                    <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
-                    <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
-                    <buildArg>-H:ResourceConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
-                    <buildArg>--gc=G1</buildArg>
-                    <buildArg>-Ob</buildArg>
-                  </buildArgs>
-                </configuration>
               </execution>
             </executions>
             <configuration>
@@ -101,8 +88,8 @@
                 <buildArg>--initialize-at-run-time=org.eclipse.jgit.util.FileUtils,org.eclipse.jgit.internal.storage.file.FileReftableStack,org.eclipse.jgit.internal.storage.file.FileReftableDatabase,org.eclipse.jgit.internal.storage.file.FileRepository,org.eclipse.jgit.internal.storage.file.WindowCache,tech.tablesaw.selection.BitmapBackedSelection</buildArg>
                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                 <buildArg>--trace-object-instantiation=java.util.Random</buildArg>
-                <buildArg>-H:ReflectionConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
-                <buildArg>-H:ResourceConfigurationFiles=/home/mirak/code/gitstat/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
+                <buildArg>-H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
+                <buildArg>-H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
                 <buildArg>--gc=G1</buildArg>
                 <buildArg>-Ob</buildArg>
               </buildArgs>
