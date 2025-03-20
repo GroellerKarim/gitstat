@@ -13,6 +13,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <graalvm.version>21</graalvm.version>
+        <gc>G1</gc>
     </properties>
 
     <dependencies>
@@ -150,7 +151,7 @@
                     <buildArg>--trace-object-instantiation=java.lang.Thread</buildArg>
                     <buildArg>-H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json</buildArg>
                     <buildArg>-H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json</buildArg>
-                    <buildArg>--gc=G1</buildArg>
+                    <buildArg>--gc=${gc}</buildArg>
                     <buildArg>-Ob</buildArg>
                 </buildArgs>
             </configuration>
