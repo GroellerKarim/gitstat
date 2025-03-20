@@ -46,7 +46,7 @@ mvn -Pnative clean package
 > The available options are:
 > - `G1` (default)
 > - `epsilon`
-> - `ZGC`
+> - `serial`
 >
 > For more information, see official [GraalVM Native Image Memory Management docs](https://www.graalvm.org/latest/reference-manual/native-image/optimizations-and-performance/MemoryManagement/).
 
