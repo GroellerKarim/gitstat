@@ -35,6 +35,21 @@ Requires Java 21 or GraalVM 21 for native builds. Native builds are the recommen
 mvn -Pnative clean package
 ```
 
+> [!TIP]
+> By default, the native executable uses the G1 garbage collector.
+> However, this garbage collector is only supported on Linux AMD64 or AArch64 systems.
+>
+> You can configure which garbage collector to use by passing:
+> ```bash
+> mvn -Pnative clean package -Dgc=<your-gc>
+> ```
+> The available options are:
+> - `G1` (default)
+> - `epsilon`
+> - `serial`
+>
+> For more information, see official [GraalVM Native Image Memory Management docs](https://www.graalvm.org/latest/reference-manual/native-image/optimizations-and-performance/MemoryManagement/).
+
 ## Installation
 
 After building, copy the native executable to your PATH:
@@ -62,7 +77,7 @@ The tool will analyze the current branch and display statistics for all contribu
 ## Dependencies
 - Java 21 or later
 - Maven
-- GraalVM 21 or later (for native builds)
+- GraalVM 21 (for native builds)
 
 ## Features
 - Fast parallel processing of Git history
