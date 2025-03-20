@@ -37,11 +37,18 @@ mvn -Pnative clean package
 
 > [!TIP]
 > By default, the native executable uses the G1 garbage collector.
+> However, this garbage collector is only supported on Linux AMD64 or AArch64 systems.
 >
 > You can configure which garbage collector to use by passing:
 > ```bash
-> mvn -Pnative clean package -Dgc=epsilon
+> mvn -Pnative clean package -Dgc=<your-gc>
 > ```
+> The available options are:
+> - `G1` (default)
+> - `epsilon`
+> - `ZGC`
+>
+> For more information, see official [GraalVM Native Image Memory Management docs](https://www.graalvm.org/latest/reference-manual/native-image/optimizations-and-performance/MemoryManagement/).
 
 ## Installation
 
