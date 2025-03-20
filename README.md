@@ -35,6 +35,14 @@ Requires Java 21 or GraalVM 21 for native builds. Native builds are the recommen
 mvn -Pnative clean package
 ```
 
+> [!TIP]
+> By default, the native executable uses the G1 garbage collector.
+>
+> You can configure which garbage collector to use by passing:
+> ```bash
+> mvn -Pnative clean package -Dgc=epsilon
+> ```
+
 ## Installation
 
 After building, copy the native executable to your PATH:
@@ -62,7 +70,7 @@ The tool will analyze the current branch and display statistics for all contribu
 ## Dependencies
 - Java 21 or later
 - Maven
-- GraalVM 21 or later (for native builds)
+- GraalVM 21 (for native builds)
 
 ## Features
 - Fast parallel processing of Git history
